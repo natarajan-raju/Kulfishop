@@ -10,15 +10,7 @@ import {
 } from 'firebase/firestore';
 
 // ✅ Firebase config
-const firebaseConfig = {
-  apiKey: "AIzaSyBbqzu_QYRfFfwuJ8NH--TTOTRfgofaWmo",
-  authDomain: "kulfi-shop.firebaseapp.com",
-  projectId: "kulfi-shop",
-  storageBucket: "kulfi-shop.firebasestorage.app",
-  messagingSenderId: "596752401722",
-  appId: "1:596752401722:web:3f99b4ff2b4f1a56b1bc03",
-  measurementId: "G-R8VPE8LNM1",
-};
+
 
 // ✅ Initialize Firebase
 const app = initializeApp(firebaseConfig);
