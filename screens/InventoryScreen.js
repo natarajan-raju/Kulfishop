@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { View, StyleSheet, Modal, TouchableOpacity, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { InventoryContext } from '../context/InventoryContext';
+import CalculatorView from '../components/CalculatorView';
 import { CartContext } from '../context/Cart';
 import {
   doc,
@@ -33,6 +34,8 @@ const InventoryScreen = () => {
   const [plateInput, setPlateInput] = useState('');
   const [dayStarted, setDayStarted] = useState(false);
   const [dayClosed, setDayClosed] = useState(false);
+  const [calculatorMode, setCalculatorMode] = useState(false);
+  const [calcRows, setCalcRows] = useState([]);
 
 
 
@@ -193,12 +196,12 @@ const InventoryScreen = () => {
       }
 
   
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show('Stock replenished successfully!', {
         duration: Toast.durations.SHORT,
         position: Toast.positions.BOTTOM,
         backgroundColor: 'green',
       });
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   
     } catch (error) {
       console.error('Error updating stock:', error);
@@ -231,6 +234,7 @@ const InventoryScreen = () => {
 
   return (
     <SafeAreaView style={{flex: 1, backgroundColor: '#f9f9f9'}}>
+      {!calculatorMode ? (
       <View style={styles.container}>
         {/* Add your inventory cards here */}
         <View style={styles.stockRow}>
@@ -245,7 +249,7 @@ const InventoryScreen = () => {
               (inventory?.plate?.quantity * inventory?.plate?.costPrice || 0)}
             </Text>
           </View>
-          <View style={[styles.stockCard, { backgroundColor: '#fb8b24' }]}>
+          <View style={[styles.stockCard, { backgroundColor: '#eb7100' }]}>
             <Text style={styles.stockLabel}>Carts Inventory</Text>
             <Text style={styles.stockValue}>{cartTotalQty} pcs</Text>
             <Text style={styles.stockValue}>₹{cartStockValue}</Text>
@@ -306,6 +310,15 @@ const InventoryScreen = () => {
           <Text style={styles.replenishButtonText}>Replenish Stock</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={[styles.calcButton]}
+          onPress={() => setCalculatorMode(true)}
+        >
+          <Ionicons name="calculator" size={20} color="#fff" />
+          <Text style={styles.calcButtonText}>Stock Calculator</Text>
+        </TouchableOpacity>
+
+
         <Modal
           animationType="slide"
           transparent={true}
@@ -349,8 +362,11 @@ const InventoryScreen = () => {
           </View>
         </Modal>
 
-
       </View>
+      ) : (
+      <View style={styles.container}>
+        <CalculatorView onClose={() => setCalculatorMode(false)} />
+      </View>) }
     </SafeAreaView>
   );
   
@@ -463,7 +479,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   modalButton: {
-    backgroundColor: '#fb8b24',
+    backgroundColor: '#eb7100',
     padding: 14,
     borderRadius: 12,
     alignItems: 'center',
@@ -473,7 +489,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  
+  calcButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#311847',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  calcButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+
   
 });
 

@@ -15,8 +15,6 @@ import {
   TextInput,
   Alert,
   ScrollView,
-  ToastAndroid,
-  Platform,
   ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,17 +22,11 @@ import { Picker } from '@react-native-picker/picker';
 import { InventoryContext } from '../context/InventoryContext';
 import { CartContext } from '../context/Cart';
 import { readDocuments, updateDocument, db } from '../database/firebase';
-import { captureRef } from 'react-native-view-shot';
-import * as Sharing from 'expo-sharing';
-import Feather from 'react-native-vector-icons/Feather';
 import { Image } from 'react-native';
-import LottieView from 'lottie-react-native';
 import * as Haptics from 'expo-haptics';
-
-
-
-
-
+import {LottieView} from 'lottie-react-native';
+import Toast from 'react-native-root-toast';
+import { Feather } from '@expo/vector-icons';
 
 
 const OperationsScreen = () => {
@@ -50,7 +42,7 @@ const OperationsScreen = () => {
   const [dayOutStep, setDayOutStep] = useState(1);
   const [dayOutData, setDayOutData] = useState({ keptStickQty: '', keptPlateQty: '' });
   const [salesSaved, setSalesSaved] = useState({ stick: false, plate: false, receipts: false, expenses: false });
-  const [receiptsData, setReceiptsData] = useState({ cash: '', qr: '' });
+  const [receiptsData, setReceiptsData] = useState({ cash: '', qr: '', credit: '', swiggy: '', zomato: '' });
   const [expensesData, setExpensesData] = useState({
     samples: '',
     wastage: '',
@@ -77,26 +69,54 @@ const OperationsScreen = () => {
   const [dayClosed, setDayClosed] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [effectiveDate, setEffectiveDate] = useState(new Date());
 
   
+  const getEffectiveDate = async () => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth(); // 0-indexed
   
-
-  // useEffect(() => {
-  //   const loadCarts = async () => {
-  //     const data = await readDocuments('kulfiCarts');
-  //     setCarts(data);
-  //   };
-  //   const checkIfDayStarted = async () => {
-  //     const todayDate = new Date().toISOString().split('T')[0];
-  //     const summaries = await readDocuments('dailyStockSummary');
-  //     const exists = summaries.some(entry => entry.date === todayDate);
-  //     if (exists) setDayStarted(true);
-  //   };
-  //   loadCarts();
-  //   checkIfDayStarted();
-  // }, []);
+    try {
+      for (let m = currentMonth; m >= 0; m--) {
+        const year = currentYear.toString();
+        const month = String(m + 1).padStart(2, '0'); // convert to '01'...'12'
+  
+        const yearDocRef = doc(db, 'dailyStockSummary', year); 
+        const monthsCollectionRef = collection(yearDocRef, 'months');
+        const monthDocRef = doc(monthsCollectionRef, month);
+        const monthSnap = await getDoc(monthDocRef);
+  
+        if (monthSnap.exists()) {
+          const monthData = monthSnap.data();
+          const summaries = monthData.dailySummaries || {};
+  
+          const unclosedDates = Object.keys(summaries)
+            .filter(date => summaries[date]?.dayClosed === false)
+            .sort();
+  
+          if (unclosedDates.length > 0) {
+            return new Date(unclosedDates[0]); // ✅ found the date
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching effective date:', err);
+    }
+  
+    return today; // fallback to today
+  };
+  
+  
+  
+  
   useFocusEffect(
     useCallback(() => {
+      const loadEffectiveDate = async () => {
+        const date = await getEffectiveDate();
+        setEffectiveDate(date);
+        
+      };
       const initializeOperationsScreen = async () => {
         try {
           setLoading(true);
@@ -121,23 +141,35 @@ const OperationsScreen = () => {
           });
           setInventory(updatedInventory);
   
-          // Load Month Summary
-          const today = new Date();
+          // Load Effective Date using the refactored async function
+          const today = await getEffectiveDate(); // Now using async getEffectiveDate function
           const year = today.getFullYear().toString();
           const month = String(today.getMonth() + 1).padStart(2, '0');
           const todayDate = today.toISOString().split('T')[0];
-          const yearDocRef = doc(db, 'dailyStockSummary', year); 
+  
+          const yearDocRef = doc(db, 'dailyStockSummary', year);
           const monthsCollectionRef = collection(yearDocRef, 'months');
           const monthDocRef = doc(monthsCollectionRef, month);
           const monthSnap = await getDoc(monthDocRef);
   
           if (monthSnap.exists()) {
             const monthData = monthSnap.data();
+            const summaries = monthData.dailySummaries || {};
+            const todaySummary = summaries[todayDate];
+            // Find first unclosed day in this month
+            const unclosedDates = Object.keys(summaries)
+              .filter(date => summaries[date]?.dayClosed === false)
+              .sort(); // sort ascending
   
-            if (monthData.dailySummaries && monthData.dailySummaries[todayDate]) {
-              const todaySummary = monthData.dailySummaries[todayDate];
+            if (unclosedDates.length > 0) {
+              const workingDate = unclosedDates[0];
+              const workingSummary = summaries[workingDate];
               setDayStarted(true);
-              setDayClosed(todaySummary.dayClosed ?? false);
+              // console.log(workingSummary);
+              setDayClosed(false);
+            } else if(todaySummary){
+                setDayStarted(true);
+                setDayClosed(todaySummary.dayClosed ?? false);
             } else {
               setDayStarted(false);
               setDayClosed(false);
@@ -153,12 +185,15 @@ const OperationsScreen = () => {
           setLoading(false);
         }
       };
-  
+      loadEffectiveDate();
       initializeOperationsScreen();
     }, [])
   );
   
-  
+  const parseOrZero = (val) => {
+    const num = parseFloat(val);
+    return isNaN(num) ? 0 : num;
+  };
   
   const handleSubmit = async () => {
     const stick = parseInt(stickQty, 10) || 0;
@@ -336,7 +371,7 @@ const OperationsScreen = () => {
   const handleClearDayOut = () => {
     setSelectedCartId('');
     setDayOutData({ keptStickQty: '', keptPlateQty: '' });
-    setReceiptsData({ cash: '', qr: '' });
+    setReceiptsData({ cash: '', qr: '', credit: '', swiggy: '', zomato: '' });
     setExpensesData({
           samples: '',
           wastage: '',
@@ -487,7 +522,7 @@ const OperationsScreen = () => {
 
       // 🔥 Update today's dailyStockSummary with cart sales
       try {
-        const today = new Date();
+        const today = new Date(cart.openedAt);
         const year = today.getFullYear().toString();
         const month = String(today.getMonth() + 1).padStart(2, '0');
         const todayDate = today.toISOString().split('T')[0];
@@ -498,7 +533,46 @@ const OperationsScreen = () => {
         if (monthSnap.exists()) {
           const monthData = monthSnap.data();
           const todaySummary = monthData.dailySummaries?.[todayDate];
-      
+          // let currentMonthlySummary = {
+          //   stickSold: 0,
+          //   plateSold: 0,
+          //   receipts: { cash: 0, qr: 0 },
+          //   receivables: { credit: 0, swiggy: 0, zomato: 0 },
+          //   expenses: {
+          //     samples: 0,
+          //     wastage: 0,
+          //     other: 0,
+          //     municipality: 0,
+          //     bata: 0,
+          //     shortage: 0,
+          //   }
+          // };
+
+          // if (monthData.monthlySummary) {
+          //   currentMonthlySummary = monthData.monthlySummary;
+          // } else {
+          //   // 🧮 Calculate from dailySummaries if monthlySummary is missing
+          //   const summaries = monthData.dailySummaries || {};
+          //   for (const summary of Object.values(summaries)) {
+          //     currentMonthlySummary.stickSold += summary.stickSold || 0;
+          //     currentMonthlySummary.plateSold += summary.plateSold || 0;
+          
+          //     currentMonthlySummary.receipts.cash += summary.receipts?.cash || 0;
+          //     currentMonthlySummary.receipts.qr += summary.receipts?.qr || 0;
+          
+          //     currentMonthlySummary.receivables.credit += summary.receivables?.credit || 0;
+          //     currentMonthlySummary.receivables.swiggy += summary.receivables?.swiggy || 0;
+          //     currentMonthlySummary.receivables.zomato += summary.receivables?.zomato || 0;
+          
+          //     currentMonthlySummary.expenses.samples += summary.expenses?.samples || 0;
+          //     currentMonthlySummary.expenses.wastage += summary.expenses?.wastage || 0;
+          //     currentMonthlySummary.expenses.other += summary.expenses?.other || 0;
+          //     currentMonthlySummary.expenses.municipality += summary.expenses?.municipality || 0;
+          //     currentMonthlySummary.expenses.bata += summary.expenses?.bata || 0;
+          //     currentMonthlySummary.expenses.shortage += summary.expenses?.shortage || 0;
+          //   }
+          // }
+
           if (todaySummary) {
             const updatedStickSold = (todaySummary.stickSold || 0) + stickSoldQty();
             const updatedPlateSold = (todaySummary.plateSold || 0) + plateSoldQty();
@@ -507,6 +581,80 @@ const OperationsScreen = () => {
               [`dailySummaries.${todayDate}.stickSold`]: updatedStickSold,
               [`dailySummaries.${todayDate}.plateSold`]: updatedPlateSold,
             });
+
+            // // 🧮 Update monthly summary stick/plate sold
+            // await updateDoc(monthDocRef, {
+            //   [`monthlySummary.stickSold`]: (monthData.monthlySummary?.stickSold || 0) + updatedStickSold,
+            //   [`monthlySummary.plateSold`]: (monthData.monthlySummary?.plateSold || 0) + updatedPlateSold,
+            // });
+
+            let { cash, qr } = receiptsData || {};
+            cash = parseOrZero(cash);
+            qr = parseOrZero(qr);
+            let {
+              credit,
+              swiggy,
+              zomato,
+              samples,
+              wastage,
+              other,
+              municipality,
+              bata,
+              shortage
+            } = expensesData || {};
+            
+            credit = parseOrZero(credit);
+            swiggy = parseOrZero(swiggy);
+            zomato = parseOrZero(zomato);
+            samples = parseOrZero(samples);
+            wastage = parseOrZero(wastage);
+            other = parseOrZero(other);
+            municipality = parseOrZero(municipality);
+            bata = parseOrZero(bata);
+            shortage = parseOrZero(shortage);
+            
+          
+            const updatedReceipts = {
+              [`dailySummaries.${todayDate}.receipts.cash`]: (parseFloat(todaySummary?.receipts?.cash) || 0) + parseFloat(cash),
+              [`dailySummaries.${todayDate}.receipts.qr`]: (parseFloat(todaySummary?.receipts?.qr) || 0) + parseFloat(qr),
+            };
+
+            const updatedReceivables = {
+              [`dailySummaries.${todayDate}.receivables.credit`]: (parseFloat(todaySummary?.receivables?.credit) || 0) + parseFloat(credit),
+              [`dailySummaries.${todayDate}.receivables.swiggy`]: (parseFloat(todaySummary?.receivables?.swiggy) || 0) + parseFloat(swiggy),
+              [`dailySummaries.${todayDate}.receivables.zomato`]: (parseFloat(todaySummary?.receivables?.zomato) || 0) + parseFloat(zomato),
+            };
+            
+            const updatedExpenses = {
+              [`dailySummaries.${todayDate}.expenses.samples`]: (parseFloat(todaySummary?.expenses?.samples) || 0) + parseFloat(samples),
+              [`dailySummaries.${todayDate}.expenses.wastage`]: (parseFloat(todaySummary?.expenses?.wastage) || 0) + parseFloat(wastage),
+              [`dailySummaries.${todayDate}.expenses.other`]: (parseFloat(todaySummary?.expenses?.other) || 0) + parseFloat(other),
+              [`dailySummaries.${todayDate}.expenses.municipality`]: (parseFloat(todaySummary?.expenses?.municipality) || 0) + parseFloat(municipality),
+              [`dailySummaries.${todayDate}.expenses.bata`]: (parseFloat(todaySummary?.expenses?.bata) || 0) + parseFloat(bata),
+              [`dailySummaries.${todayDate}.expenses.shortage`]: (parseFloat(todaySummary?.expenses?.shortage) || 0) + parseFloat(shortage),
+            };
+          
+            await updateDoc(monthDocRef, {
+              ...updatedReceipts,
+              ...updatedReceivables,
+              ...updatedExpenses,
+            
+              // [`monthlySummary.receipts.cash`]: currentMonthlySummary.receipts.cash + parseFloat(cash),
+              // [`monthlySummary.receipts.qr`]: currentMonthlySummary.receipts.qr + parseFloat(qr),
+            
+              // [`monthlySummary.receivables.credit`]: currentMonthlySummary.receivables.credit + parseFloat(credit),
+              // [`monthlySummary.receivables.swiggy`]: currentMonthlySummary.receivables.swiggy + parseFloat(swiggy),
+              // [`monthlySummary.receivables.zomato`]: currentMonthlySummary.receivables.zomato + parseFloat(zomato),
+            
+              // [`monthlySummary.expenses.samples`]: currentMonthlySummary.expenses.samples + parseFloat(samples),
+              // [`monthlySummary.expenses.wastage`]: currentMonthlySummary.expenses.wastage + parseFloat(wastage),
+              // [`monthlySummary.expenses.other`]: currentMonthlySummary.expenses.other + parseFloat(other),
+              // [`monthlySummary.expenses.municipality`]: currentMonthlySummary.expenses.municipality + parseFloat(municipality),
+              // [`monthlySummary.expenses.bata`]: currentMonthlySummary.expenses.bata + parseFloat(bata),
+              // [`monthlySummary.expenses.shortage`]: currentMonthlySummary.expenses.shortage + parseFloat(shortage),
+            });
+            
+          
           } else {
             console.error('❌ No todaySummary found to update');
           }
@@ -516,8 +664,6 @@ const OperationsScreen = () => {
       } catch (error) {
         console.error('❌ Error updating dailyStockSummary with cart sales:', error);
       }
-      
-      Alert.alert('Success', 'Cart closed successfully!');
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowConfetti(true);
       // Hide confetti after 3 seconds
@@ -547,11 +693,11 @@ const OperationsScreen = () => {
       await Sharing.shareAsync(uri);
   
       // 🎉 Show a Toast or Alert after sharing
-      if (Platform.OS === 'android') {
-        ToastAndroid.show('🎉 Dashboard Shared Successfully!', ToastAndroid.SHORT);
-      } else {
-        Alert.alert('Success', '🎉 Dashboard Shared Successfully!');
-      }
+      Toast.show('🎉 Dashboard Shared Successfully!', {
+        duration: Toast.durations.SHORT,
+        position: Toast.positions.BOTTOM,
+      });
+      
   
     } catch (error) {
       console.error('Share failed', error);
@@ -567,6 +713,7 @@ const OperationsScreen = () => {
     return `${day}-${month}-${year}`;
   };
   
+   
   const handleStartDay = async () => {
     try {
       const today = new Date();
@@ -574,6 +721,27 @@ const OperationsScreen = () => {
       const month = String(today.getMonth() + 1).padStart(2, '0');
       const todayDate = today.toISOString().split('T')[0];
   
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      const yesterdayYear = yesterday.getFullYear().toString();
+      const yesterdayMonth = String(yesterday.getMonth() + 1).padStart(2, '0');
+      const yesterdayDate = yesterday.toISOString().split('T')[0];
+  
+      // Get yesterday's month document
+      const yesterdayMonthDocRef = doc(db, 'dailyStockSummary', yesterdayYear, 'months', yesterdayMonth);
+      const yesterdayMonthSnap = await getDoc(yesterdayMonthDocRef);
+  
+      if (yesterdayMonthSnap.exists()) {
+        const yesterdayMonthData = yesterdayMonthSnap.data();
+        const yesterdaySummary = yesterdayMonthData.dailySummaries?.[yesterdayDate];
+  
+        if (yesterdaySummary && !yesterdaySummary.dayClosed) {
+          Alert.alert('Hold on!', 'Please close yesterday\'s day first before starting a new day.');
+          return;
+        }
+      }
+  
+      // Now Start today's day
       const monthDocRef = doc(db, 'dailyStockSummary', year, 'months', month);
       const monthSnap = await getDoc(monthDocRef);
   
@@ -591,12 +759,13 @@ const OperationsScreen = () => {
           closingStock: null,
           stickSold: 0,
           plateSold: 0,
+          dayStarted: true,
           dayClosed: false,
           remarks: '',
         }
       });
   
-      setDayStarted(true);      
+      setDayStarted(true);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('✅ Success', 'Day started and Opening Stock saved!');
     } catch (error) {
@@ -606,10 +775,9 @@ const OperationsScreen = () => {
   };
   
   
-  
   const handleCloseDay = async () => {
     try {
-      const today = new Date();
+      const today = effectiveDate;
       const year = today.getFullYear().toString();
       const month = String(today.getMonth() + 1).padStart(2, '0');
       const todayDate = today.toISOString().split('T')[0];
@@ -669,7 +837,7 @@ const OperationsScreen = () => {
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#fb8b24" />
+        <ActivityIndicator size="large" color="#eb7100" />
       </View>
     );
   }
@@ -683,19 +851,19 @@ const OperationsScreen = () => {
     <ScrollView style={[styles.container, { backgroundColor }]}
     contentContainerStyle={{ flexGrow: 1, paddingBottom: 100}}>
 
-      {showConfetti && (
-        <LottieView
-          source={require('../assets/confetti.json')} // 🎉 your lottie confetti file
-          autoPlay
-          loop={false}
-          style={{
-            position: 'absolute',
-            width: '100%',
-            height: '100%',
-            zIndex: 100,
-          }}
-        />
-      )}
+       {!__DEV__ &&showConfetti && (
+          <LottieView
+            source={require('../assets/confetti.json')} // 🎉 your lottie confetti file
+            autoPlay
+            loop={false}
+            style={{
+              position: 'absolute',
+              width: '100%',
+              height: '100%',
+              zIndex: 100,
+            }}
+          />
+        )}
 
       {/* Toggle */}
       <View style={styles.toggleWrapper}>
@@ -740,7 +908,7 @@ const OperationsScreen = () => {
                 marginTop: 20,
                 fontSize: 18,
                 fontWeight: '700',
-                color: '#fb8b24',
+                color: '#eb7100',
                 textAlign: 'center'
               }}>
                 Business closed for today.  
@@ -751,6 +919,14 @@ const OperationsScreen = () => {
           ) : (
             !dayStarted ? (
               <View style={{ alignItems: 'center', marginTop: 40 }}>
+                <Text style={styles.currentDay}>
+                📅 {effectiveDate.toLocaleDateString('en-GB', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </Text>
                 <Image
                   source={require('../assets/undraw_ice-cream_mhwt.png')}
                   style={{ width: '90%', height: 300, resizeMode: 'contain' }}
@@ -770,7 +946,7 @@ const OperationsScreen = () => {
             ) : (
               <>
                 <Text style={styles.currentDay}>
-                📅 {new Date().toLocaleDateString('en-GB', {
+                📅 {effectiveDate.toLocaleDateString('en-GB', {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'short',
@@ -786,7 +962,7 @@ const OperationsScreen = () => {
                   <Text style={styles.warehouseTitle}>Available in Warehouse</Text>
 
                   <View style={styles.circleRow}>
-                    <View style={[styles.circle, { borderColor: '#fb8b24' }]}>
+                    <View style={[styles.circle, { borderColor: '#eb7100' }]}>
                       <Text style={styles.circleQty}>{inventory?.stick?.quantity ?? 0}</Text>
                     </View>
                     <View style={[styles.circle, { borderColor: '#d90368' }]}>
@@ -795,7 +971,7 @@ const OperationsScreen = () => {
                   </View>
 
                   <View style={styles.labelRow}>
-                    <Text style={[styles.circleLabel, { color: '#fb8b24' }]}>Stick</Text>
+                    <Text style={[styles.circleLabel, { color: '#eb7100' }]}>Stick</Text>
                     <Text style={[styles.circleLabel, { color: '#d90368' }]}>Plate</Text>
                   </View>
                 </View>
@@ -803,72 +979,89 @@ const OperationsScreen = () => {
     
                 
                 
-  
-                <View style={styles.form}>
-                  <Text style={[styles.label, { color: labelTextColor('Select Cart') }]}>Select Cart</Text>
-                  <View style={styles.pickerWrapper}>
-                    <Picker
-                      selectedValue={selectedCartId}
-                      onValueChange={setSelectedCartId}
-                      mode="dropdown"
-                      dropdownIconColor={textColor}
-                    >
-                      <Picker.Item label="Select a cart" value="" />
-                      {carts.map(cart => (
-                        <Picker.Item
-                          key={cart.id}
-                          label={`${cart.address} (ID: ${cart.id})`}
-                          value={cart.id}
-                          
-                        />
-                      ))}
-                    </Picker>
-                  </View>
-  
-                  <Text style={[styles.label, { color: labelTextColor('Stick Kulfi Qty') }]}>Stick Kulfi Qty</Text>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: inputBgColor, color: textColor }]}
-                    keyboardType="number-pad"
-                    value={stickQty}
-                    onChangeText={setStickQty}
-                    placeholder="0"
-                    placeholderTextColor="#aaa"
-                  />
-  
-                  <Text style={[styles.label, { color: labelTextColor('Plate Kulfi Qty') }]}>Plate Kulfi Qty</Text>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: inputBgColor, color: textColor }]}
-                    keyboardType="number-pad"
-                    value={plateQty}
-                    onChangeText={setPlateQty}
-                    placeholder="0"
-                    placeholderTextColor="#aaa"
-                  />
-  
-                  <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-                    <Text style={styles.submitText}>Transfer to Cart</Text>
-                  </TouchableOpacity>
-                </View>
+               
+                    <View style={styles.form}>
+                      <Text style={[styles.label, { color: labelTextColor('Select Cart') }]}>Select Cart</Text>
+                      <View style={styles.pickerWrapper}>
+                        <Picker
+                          selectedValue={selectedCartId}
+                          onValueChange={setSelectedCartId}
+                          mode="dropdown"
+                          dropdownIconColor={textColor}
+                        >
+                          <Picker.Item key="default" label="Select a cart" value="" />
+                          {carts
+                            .map(cart => (
+                              <Picker.Item
+                                key={cart.id}
+                                label={`${cart.address} (ID: ${cart.id})`}
+                                value={cart.id}
+                              />
+                          ))}
+                        </Picker>
+                      </View>
+
+                      <Text style={[styles.label, { color: labelTextColor('Stick Kulfi Qty') }]}>Stick Kulfi Qty</Text>
+                      <TextInput
+                        style={[styles.input, { backgroundColor: inputBgColor, color: textColor }]}
+                        keyboardType="number-pad"
+                        value={stickQty}
+                        onChangeText={setStickQty}
+                        placeholder="0"
+                        placeholderTextColor="#aaa"
+                      />
+
+                      <Text style={[styles.label, { color: labelTextColor('Plate Kulfi Qty') }]}>Plate Kulfi Qty</Text>
+                      <TextInput
+                        style={[styles.input, { backgroundColor: inputBgColor, color: textColor }]}
+                        keyboardType="number-pad"
+                        value={plateQty}
+                        onChangeText={setPlateQty}
+                        placeholder="0"
+                        placeholderTextColor="#aaa"
+                      />
+
+                      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+                        <Text style={styles.submitText}>Transfer to Cart</Text>
+                      </TouchableOpacity>
+                    </View>                  
+                
               </>
             )  
           )
         }
-
-
-
-
-
-          
-
-
         </>
+        // <DayInForm
+        //   dayStarted={dayStarted}
+        //   dayClosed={dayClosed}
+        //   inventory={inventory}
+        //   carts={carts}
+        //   selectedCartId={selectedCartId}
+        //   setSelectedCartId={setSelectedCartId}
+        //   stickQty={stickQty}
+        //   setStickQty={setStickQty}
+        //   plateQty={plateQty}
+        //   setPlateQty={setPlateQty}
+        //   handleSubmit={handleSubmit}
+        //   handleStartDay={handleStartDay}
+        //   labelTextColor={labelTextColor}
+        //   styles={styles}
+        //   textColor={textColor}
+        //   inputBgColor={inputBgColor}
+        //   effectiveDate={effectiveDate}
+        // />
       )}
 
       {/* Day Out Mode */}
       {mode === 'dayOut' && (
         <View>
-          <Text style={[styles.dateText, { color: '#fb8b24' }]}>
-            Date: {new Date().toLocaleDateString()}
+          <Text style={[styles.dateText, { color: '#eb7100' }]}>
+          📅 {effectiveDate.toLocaleDateString('en-GB', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
           </Text>
 
           {/* Cart Picker */}
@@ -878,10 +1071,13 @@ const OperationsScreen = () => {
               selectedValue={selectedCartId}
               onValueChange={(itemValue) => {
                 setSelectedCartId(itemValue);
+                setCartClosed(false); // ✅ Reset cartClosed when switching carts
                 setDayOutData({ keptStickQty: '', keptPlateQty: '' });
                 setDayOutStep(1);
-                setSalesSaved({ stick: false, plate: false });
+                setSalesSaved({ stick: false, plate: false, receipts: false, expenses: false });
+                setFinalDashboardData(null); // ✅ Optional: clear previous dashboard data
               }}
+              
               mode="dropdown"
               dropdownIconColor={mode === 'dayOut' ? '#fff' : '#000'}
               style={{ color: mode === 'dayOut' ? '#fff' : '#000' }}
@@ -910,7 +1106,7 @@ const OperationsScreen = () => {
                   styles.submitButton,
                   {
                     width: '95%',
-                    backgroundColor: carts.some(c => c.status === 'open') ? '#aaa' : '#fb8b24',
+                    backgroundColor: carts.some(c => c.status === 'open') ? '#aaa' : '#eb7100',
                     alignSelf: 'center',
                     marginTop: 16,
                   }
@@ -1143,7 +1339,7 @@ const OperationsScreen = () => {
                       {/* Expenses Section */}
                       {['samples', 'wastage', 'credit', 'swiggy', 'zomato'].map((key) => (
                         <View key={key}>
-                          <Text style={[styles.label, { color: '#fb8b24' }]}>{key.charAt(0).toUpperCase() + key.slice(1)}</Text>
+                          <Text style={[styles.label, { color: '#eb7100' }]}>{key.charAt(0).toUpperCase() + key.slice(1)}</Text>
                           <TextInput
                             style={[styles.input, { backgroundColor: 'transparent', color: '#fff' }]}
                             keyboardType="number-pad"
@@ -1164,7 +1360,7 @@ const OperationsScreen = () => {
                         </View>
                       ))}
 
-                      <Text style={[styles.label, { color: '#fb8b24', marginTop: 16 }]}>
+                      <Text style={[styles.label, { color: '#eb7100', marginTop: 16 }]}>
                         Section Subtotal (₹)
                       </Text>
                       <TextInput
@@ -1175,11 +1371,11 @@ const OperationsScreen = () => {
 
 
                       {/* Daily Expenses Section */}
-                      <Text style={[styles.label, { color: '#fb8b24', marginTop: 16 }]}>Daily Expenses</Text>
+                      <Text style={[styles.label, { color: '#eb7100', marginTop: 16 }]}>Daily Expenses</Text>
 
                       {['municipality', 'bata', 'shortage', 'others'].map((key) => (
                         <View key={key}>
-                          <Text style={[styles.label, { color: '#fb8b24' }]}>{key.charAt(0).toUpperCase() + key.slice(1)}</Text>
+                          <Text style={[styles.label, { color: '#eb7100' }]}>{key.charAt(0).toUpperCase() + key.slice(1)}</Text>
                           <TextInput
                             style={[styles.input, { backgroundColor: 'transparent', color: '#fff' }]}
                             keyboardType="number-pad"
@@ -1200,7 +1396,7 @@ const OperationsScreen = () => {
                         </View>
                       ))}
 
-                      <Text style={[styles.label, { color: '#fb8b24', marginTop: 16 }]}>
+                      <Text style={[styles.label, { color: '#eb7100', marginTop: 16 }]}>
                         Daily Expenses Subtotal (₹)
                       </Text>
                       <TextInput
@@ -1247,7 +1443,7 @@ const OperationsScreen = () => {
                   />
 
                   {/* Denomination Inputs */}
-                  <Text style={[styles.label, { color: '#fb8b24', marginTop: 16 }]}>Cash Denomination</Text>
+                  <Text style={[styles.label, { color: '#eb7100', marginTop: 16 }]}>Cash Denomination</Text>
 
                   {['500', '200', '100', '50', '20', '10', 'coins'].map((denom) => (
                     <View key={denom} style={{ marginBottom: 8 }}>
@@ -1326,7 +1522,7 @@ const OperationsScreen = () => {
                       styles.submitButton,
                       {
                         width: dayOutStep === 1 ? '90%' : '40%',
-                        backgroundColor: isNextEnabled() ? '#fb8b24' : '#888',
+                        backgroundColor: isNextEnabled() ? '#eb7100' : '#888',
                       }
                     ]}
                     onPress={handleNext}
@@ -1370,15 +1566,21 @@ const OperationsScreen = () => {
                 <View ref={dashboardRef} collapsable={false} style={styles.dashboardCard}>
                   <View style={styles.dashboardTitleRow}>
                     <Text style={styles.dashboardTitle}>📦 Sales Dashboard</Text>
-                    {cartClosed && (
-                      <TouchableOpacity onPress={handleShareDashboard}>
-                        <Feather name="share-2" size={22} color="#fb8b24" />
-                      </TouchableOpacity>
-                    )}
+                      {!__DEV__ && cartClosed && (
+                        <TouchableOpacity onPress={handleShareDashboard}>
+                          <Feather name="share-2" size={22} color="#eb7100" />
+                        </TouchableOpacity>
+                      )}
                   </View>
 
                   <Text style={[styles.dashboardTitle, { marginBottom: 10 }]}>
-                    📅 {formatDate(carts.find(c => c.id === selectedCartId)?.openedAt)}
+                    {/* 📅 {formatDate(carts.find(c => c.id === selectedCartId)?.openedAt)} */}
+                    📅 {effectiveDate.toLocaleDateString('en-GB', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })}
                   </Text>
 
                   {/* Cart Address */}
@@ -1640,7 +1842,7 @@ const styles = StyleSheet.create({
   },
   
   infoText: {
-    color: '#fb8b24',
+    color: '#eb7100',
     fontSize: 16,
     fontWeight: '700',
     marginTop: 4,
@@ -1674,7 +1876,7 @@ const styles = StyleSheet.create({
   },
   
   activeStepCard: {
-    backgroundColor: '#fb8b24',
+    backgroundColor: '#eb7100',
     zIndex: 20,
   },
   
@@ -1709,7 +1911,7 @@ const styles = StyleSheet.create({
   dashboardTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#fb8b24',
+    color: '#eb7100',
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -1843,7 +2045,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#fb8b24',
+    backgroundColor: '#eb7100',
     opacity: 0.2,
   },
   

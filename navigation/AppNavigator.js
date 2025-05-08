@@ -5,6 +5,7 @@ import InventoryScreen from '../screens/InventoryScreen';
 import CartScreen from '../screens/CartScreen';
 import OperationsScreen from '../screens/OperationsScreen';
 import ReportsScreen from '../screens/ReportsScreen';
+import ReminderScreen from '../screens/ReminderScreen';
 
 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -61,6 +62,16 @@ const AppNavigator = () => {
             tabBarLabel: 'Reports',
             tabBarIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="file-chart" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Reminders"
+          component={ReminderScreen}
+          options={{
+            tabBarLabel: 'Reminders',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="store-clock" size={size} color={color} />
             ),
           }}
         />

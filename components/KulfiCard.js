@@ -52,7 +52,7 @@ const KulfiCard = ({ type, iconName, inventory, setInventory, documentId }) => {
         style={styles.card}
       >
         <View style={styles.iconSection}>
-          <MaterialCommunityIcons name={iconName} size={48} color="#fb8b24" />
+          <MaterialCommunityIcons name={iconName} size={48} color="#eb7100" />
           <Text style={styles.kulfiType}>{type}</Text>
         </View>
         <View style={styles.dataSection}>

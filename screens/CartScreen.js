@@ -179,7 +179,7 @@ const CartScreen = () => {
         
         <View style={styles.actionButtons}>
           <TouchableOpacity onPress={() => openEditModal(item)}>
-            <MaterialCommunityIcons name="pencil" size={24} color="#fb8b24" />
+            <MaterialCommunityIcons name="pencil" size={24} color="#eb7100" />
           </TouchableOpacity>
 
           {!isOpen && (
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   modalButton: {
-    backgroundColor: '#fb8b24',
+    backgroundColor: '#eb7100',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
