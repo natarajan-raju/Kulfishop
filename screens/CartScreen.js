@@ -168,8 +168,8 @@ const CartScreen = () => {
               <Text style={styles.openedAtText}>Opened {openedAgo}</Text>
             )}
 
-          <Text style={styles.cardTitle}>Cart ID: {item.id}</Text>
-          <Text style={styles.cardText}>Address: {item.address}</Text>
+          {/* <Text style={styles.cardTitle}>Cart ID: {item.id}</Text> */}
+          <Text style={styles.cardTitle}>Cart ID: {item.address}</Text>
           <Text style={styles.cardText}>🟠 Stick: {stickQty} pcs | ₹{stickValue}</Text>
           <Text style={styles.cardText}>🟣 Plate: {plateQty} pcs | ₹{plateValue}</Text>
           <Text style={[styles.cardText, { fontWeight: 'bold', marginTop: 4 }]}>

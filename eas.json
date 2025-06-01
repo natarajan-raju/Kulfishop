@@ -8,19 +8,29 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
+        "ENVFILE": ".env.development",
         "EXPO_USE_LEGACY_INSTALLER": "1"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
+        "ENVFILE": ".env.preview",
         "EXPO_USE_LEGACY_INSTALLER": "1"
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
       "autoIncrement": true,
+      "distribution": "store",
       "env": {
+        "ENVFILE": ".env.production",
         "EXPO_USE_LEGACY_INSTALLER": "1"
+      },
+      "android": {
+        "buildType": "apk"
       }
     }
   },

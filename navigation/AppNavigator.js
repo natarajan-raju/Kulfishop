@@ -8,6 +8,7 @@ import ReportsScreen from '../screens/ReportsScreen';
 import ReminderScreen from '../screens/ReminderScreen';
 
 
+
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 
@@ -27,9 +28,9 @@ const AppNavigator = () => {
             borderTopWidth: 1,
           },
         }}
-      >
+      >        
         <Tab.Screen
-          name="Inventory"
+          name="Home"
           component={InventoryScreen}
           options={{
             tabBarIcon: ({ color, size }) => (

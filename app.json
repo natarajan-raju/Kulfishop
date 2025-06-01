@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "kulfi-shop",
+    "name": "NOK",
     "slug": "kulfi-shop",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,6 +12,7 @@
       "backgroundColor": "#ffffff",
       "backgroundImage": "./assets/bg.jpg"
     },
+    "assetBundlePatterns": ["assets/**"],
     "ios": {
       "supportsTablet": true
     },
@@ -20,6 +21,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "jsEngine": "hermes",
       "package": "com.nexttheory.ai.kulfishop"
     },
     "web": {

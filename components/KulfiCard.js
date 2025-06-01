@@ -16,6 +16,7 @@ const KulfiCard = ({ type, iconName, inventory, setInventory, documentId }) => {
   // const [quantity, setQuantity] = useState(inventory?.quantity?.toString() || '0');
   const [costPrice, setCostPrice] = useState(inventory?.costPrice?.toString() || '0');
   const [sellingPrice, setSellingPrice] = useState(inventory?.sellingPrice?.toString() || '0');
+  const quantity = inventory?.quantity?.toString() || '0';
 
   const openModal = () => {
     // setQuantity(inventory?.quantity?.toString() || '0');
@@ -26,7 +27,7 @@ const KulfiCard = ({ type, iconName, inventory, setInventory, documentId }) => {
 
   const handleSave = async () => {
     const updatedData = {
-      // quantity: parseInt(quantity, 10),
+      quantity: parseInt(quantity),
       costPrice: parseFloat(costPrice),
       sellingPrice: parseFloat(sellingPrice),
     };
@@ -35,9 +36,10 @@ const KulfiCard = ({ type, iconName, inventory, setInventory, documentId }) => {
       await updateDocument('warehouseInventory', documentId, updatedData);
 
       setInventory(prev => ({
-        ...prev,
-        [type.toLowerCase()]: updatedData,
-      }));
+      ...prev,
+      [type.toLowerCase()]: updatedData,
+    }));
+
 
       Alert.alert('Success', `${type} Kulfi updated.`);
       setModalVisible(false);
@@ -57,8 +59,8 @@ const KulfiCard = ({ type, iconName, inventory, setInventory, documentId }) => {
         </View>
         <View style={styles.dataSection}>
           <Text style={styles.quantity}>{inventory?.quantity ?? 0} pcs</Text>
-          <Text style={styles.price}>Cost: ₹{inventory?.costPrice ?? 0}</Text>
-          <Text style={styles.price}>Sell: ₹{inventory?.sellingPrice ?? 0}</Text>
+          {/* <Text style={styles.price}>Cost: ₹{inventory?.costPrice ?? 0}</Text> */}
+          <Text style={styles.price}>Price: ₹{inventory?.sellingPrice ?? 0}</Text>
         </View>
         <TouchableOpacity style={styles.editButton} onPress={openModal}>
           <MaterialCommunityIcons name="pencil-circle-outline" size={32} color="#007aff" />
@@ -85,16 +87,16 @@ const KulfiCard = ({ type, iconName, inventory, setInventory, documentId }) => {
               onChangeText={setQuantity}
             /> */}
 
-            <Text style={styles.inputLabel}>Cost Price</Text>
+            {/* <Text style={styles.inputLabel}>Cost Price</Text>
             <TextInput
               style={styles.input}
               keyboardType="decimal-pad"
               placeholder="Enter Cost Price"
               value={costPrice}
               onChangeText={setCostPrice}
-            />
+            /> */}
 
-            <Text style={styles.inputLabel}>Selling Price</Text>
+            <Text style={styles.inputLabel}>Price</Text>
             <TextInput
               style={styles.input}
               keyboardType="decimal-pad"

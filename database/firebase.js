@@ -8,9 +8,35 @@ import {
   setDoc,
   deleteDoc,
 } from 'firebase/firestore';
+import {
+  FIREBASE_API_KEY,
+  FIREBASE_AUTH_DOMAIN,
+  FIREBASE_PROJECT_ID,
+  FIREBASE_STORAGE_BUCKET,
+  FIREBASE_MESSAGING_SENDER_ID,
+  FIREBASE_APP_ID,
+  FIREBASE_MEASUREMENT_ID,
+} from '@env';
 
 // ✅ Firebase config
-
+// const firebaseConfig = {
+//   apiKey: "AIzaSyBbqzu_QYRfFfwuJ8NH--TTOTRfgofaWmo",
+//   authDomain: "kulfi-shop.firebaseapp.com",
+//   projectId: "kulfi-shop",
+//   storageBucket: "kulfi-shop.firebasestorage.app",
+//   messagingSenderId: "596752401722",
+//   appId: "1:596752401722:web:3f99b4ff2b4f1a56b1bc03",
+//   measurementId: "G-R8VPE8LNM1",
+// };
+const firebaseConfig = {
+  apiKey: FIREBASE_API_KEY,
+  authDomain: FIREBASE_AUTH_DOMAIN,
+  projectId: FIREBASE_PROJECT_ID,
+  storageBucket: FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
+  appId: FIREBASE_APP_ID,
+  measurementId: FIREBASE_MEASUREMENT_ID,
+};
 
 // ✅ Initialize Firebase
 const app = initializeApp(firebaseConfig);

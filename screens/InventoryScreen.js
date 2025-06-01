@@ -35,7 +35,8 @@ const InventoryScreen = () => {
   const [dayStarted, setDayStarted] = useState(false);
   const [dayClosed, setDayClosed] = useState(false);
   const [calculatorMode, setCalculatorMode] = useState(false);
-  const [calcRows, setCalcRows] = useState([]);
+  const [monthlySales, setMonthlySales] = useState(0);
+  const [yearlySales, setYearlySales] = useState(0);
 
 
 
@@ -64,17 +65,9 @@ const InventoryScreen = () => {
           const cartsData = await readDocuments('kulfiCarts');
           setCarts(cartsData);
 
-          // const todayDate = new Date().toISOString().split('T')[0];
-          // const summaries = await readDocuments('dailyStockSummary');
-          // const todaySummary = summaries.find(doc => doc.date === todayDate);
+          
 
-          // if (todaySummary) {
-          //   setDayStarted(true);
-          //   setDayClosed(todaySummary.dayClosed ?? false);
-          // } else {
-          //   setDayStarted(false);
-          //   setDayClosed(false);
-          // }
+
 
           // Load Month Summary
           const today = new Date();
@@ -85,10 +78,18 @@ const InventoryScreen = () => {
           const monthsCollectionRef = collection(yearDocRef, 'months');
           const monthDocRef = doc(monthsCollectionRef, month);
           const monthSnap = await getDoc(monthDocRef);
+          
+          // Load year summary          
+          const yearSnap = await getDoc(yearDocRef);
+          if (yearSnap.exists()) {
+            const yearData = yearSnap.data();
+            const yearlySummary = yearData.yearlySummary || {};
+            setYearlySales(yearlySummary.totalSales || 0);
+          }
   
           if (monthSnap.exists()) {
             const monthData = monthSnap.data();
-  
+            setMonthlySales(monthData.monthlySummary.totalSales || 0);
             if (monthData.dailySummaries && monthData.dailySummaries[todayDate]) {
               const todaySummary = monthData.dailySummaries[todayDate];
               setDayStarted(true);
@@ -113,8 +114,8 @@ const InventoryScreen = () => {
             cartPlateQty += cart.inventory?.plate || 0;
           });
 
-          const cartStickValue = cartStickQty * updated.stick.costPrice;
-          const cartPlateValue = cartPlateQty * updated.plate.costPrice;
+          const cartStickValue = cartStickQty * updated.stick.sellingPrice;
+          const cartPlateValue = cartPlateQty * updated.plate.sellingPrice;
 
           setCartTotalQty(cartStickQty + cartPlateQty);
           setCartStockValue(cartStickValue + cartPlateValue);
@@ -195,7 +196,7 @@ const InventoryScreen = () => {
         }
       }
 
-  
+      fetchInventory();
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show('Stock replenished successfully!', {
         duration: Toast.durations.SHORT,
@@ -233,10 +234,37 @@ const InventoryScreen = () => {
   
 
   return (
-    <SafeAreaView style={{flex: 1, backgroundColor: '#f9f9f9'}}>
+    <SafeAreaView style={{flex: 1, backgroundColor: '#fff'}}>
       {!calculatorMode ? (
       <View style={styles.container}>
         {/* Add your inventory cards here */}
+
+        <View style={styles.stockRow}>
+          <View style={[styles.stockCard, { backgroundColor: '#0f0f0f' }]}>
+            <Text style={styles.stockLabel}>Monthly Sales</Text>
+            <Text style={styles.stockValue}>₹{monthlySales}</Text>
+          </View>
+          <View style={[styles.stockCard, { backgroundColor: '#14591d' }]}>
+            <Text style={styles.stockLabel}>Yearly Sales</Text>
+            <Text style={styles.stockValue}>₹{yearlySales}</Text>
+          </View>
+        </View>
+
+
+        <View style={styles.totalCard}>
+          <Text style={styles.totalLabel}>Overall Stock Available</Text>
+          <Text style={styles.totalValue}>
+            {totalOverallQty} pcs
+          </Text>
+          <Text style={styles.totalValue}>
+            ₹
+            {(inventory?.stick?.quantity * inventory?.stick?.sellingPrice || 0) +
+            (inventory?.plate?.quantity * inventory?.plate?.sellingPrice || 0) +
+            cartStockValue}
+          </Text>
+          
+        </View>
+
         <View style={styles.stockRow}>
           <View style={[styles.stockCard, { backgroundColor: '#d90368' }]}>
             <Text style={styles.stockLabel}>Warehouse Inventory</Text>
@@ -245,8 +273,8 @@ const InventoryScreen = () => {
             </Text>
             <Text style={styles.stockValue}>
               ₹
-              {(inventory?.stick?.quantity * inventory?.stick?.costPrice || 0) +
-              (inventory?.plate?.quantity * inventory?.plate?.costPrice || 0)}
+              {(inventory?.stick?.quantity * inventory?.stick?.sellingPrice || 0) +
+              (inventory?.plate?.quantity * inventory?.plate?.sellingPrice || 0)}
             </Text>
           </View>
           <View style={[styles.stockCard, { backgroundColor: '#eb7100' }]}>
@@ -257,18 +285,7 @@ const InventoryScreen = () => {
         </View>
 
 
-        <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>Total Stock Value</Text>
-          <Text style={styles.totalValue}>
-            ₹
-            {(inventory?.stick?.quantity * inventory?.stick?.costPrice || 0) +
-            (inventory?.plate?.quantity * inventory?.plate?.costPrice || 0) +
-            cartStockValue}
-          </Text>
-          <Text style={styles.totalValue}>
-            Total Quantity: {totalOverallQty} pcs
-          </Text>
-        </View>
+        
 
         {inventory.stick && (
           <KulfiCard
@@ -282,7 +299,7 @@ const InventoryScreen = () => {
         {inventory.plate && (
           <KulfiCard
             type="Plate"
-            iconName="food-fork-drink"
+            iconName="alpha-q-circle"
             inventory={inventory.plate}
             setInventory={setInventory}
             documentId="plateKulfi"
@@ -307,7 +324,7 @@ const InventoryScreen = () => {
           disabled={!dayStarted || dayClosed}
         >
           <Ionicons name="add-circle" size={24} color="#fff" />
-          <Text style={styles.replenishButtonText}>Replenish Stock</Text>
+          <Text style={styles.replenishButtonText}>Refill Stock</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -379,13 +396,13 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     paddingTop: 32,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#fff',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#fff',
   },
   stockRow: {
     flexDirection: 'row',

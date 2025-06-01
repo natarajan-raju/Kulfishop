@@ -6,6 +6,7 @@ import { db } from '../database/firebase';
 import { doc, getDoc, getDocs, collection } from 'firebase/firestore';
 import { Picker } from '@react-native-picker/picker';
 import { InventoryContext } from '../context/InventoryContext';
+import dayjs from 'dayjs';
 
 
 const today = new Date();
@@ -101,11 +102,13 @@ const ReportsScreen = () => {
 
   const renderSalesTableHeader = () => (
   <View style={styles.tableHeader}>
-    <Text style={[styles.headerCell, { flex: 2 }]}>Date</Text>
+    <Text style={[styles.headerCell, { flex: 1 }]}>Date</Text>
     <Text style={styles.headerCell}>Stick Qty</Text>
     <Text style={styles.headerCell}>Stick ₹</Text>
     <Text style={styles.headerCell}>Plate Qty</Text>
     <Text style={styles.headerCell}>Plate ₹</Text>
+    <Text style={styles.headerCell}>Total Qty</Text>
+    <Text style={styles.headerCell}>Total ₹</Text>
   </View>
   );
 
@@ -113,7 +116,8 @@ const ReportsScreen = () => {
     if (item.isHoliday) {
       return (
         <View style={styles.holidayRow} key={item.date}>
-          <Text style={[styles.cell, { flex: 2 }]}>{item.date}</Text>
+          <Text style={[styles.cell, { flex: 1 }]}>{dayjs(item.date).format('DD MMM')}
+          </Text>
           <Text style={[styles.cell, { flex: 4 }]}>🌴 Holiday</Text>
         </View>
       );
@@ -129,11 +133,14 @@ const ReportsScreen = () => {
         styles.tableRow,
         isCurrentOpenDay && styles.currentDayRow]
         } key={item.date}>
-        <Text style={[styles.cell, { flex: 2 }]}>{item.date}</Text>
+        <Text style={styles.cell}>{dayjs(item.date).format('DD MMM')}
+        </Text>
         <Text style={styles.cell}>{stickQty}</Text>
         <Text style={styles.cell}>₹ {(stickQty * stickRate).toFixed(2)}</Text>
         <Text style={styles.cell}>{plateQty}</Text>
-        <Text style={styles.cell}>₹ {(plateQty * plateRate).toFixed(2)}</Text>
+        <Text style={styles.cell}>{plateQty * plateRate}</Text>
+        <Text style={styles.cell}>₹ {(parseFloat(stickQty) + parseFloat(plateQty)).toFixed(2)}</Text>
+        <Text style={styles.cell}>₹ {parseFloat((stickQty * stickRate)) + parseFloat((plateQty * plateRate).toFixed(2))}</Text>
       </View>
     );
   };
@@ -160,11 +167,13 @@ const ReportsScreen = () => {
   
     return (
       <View style={styles.totalRow}>
-        <Text style={[styles.totalCell, { flex: 2 }]}>TOTAL</Text>
+        <Text style={[styles.totalCell, { flex: 1 }]}>TOTAL</Text>
         <Text style={styles.totalCell}>{totalStickQty}</Text>
         <Text style={styles.totalCell}>₹ {totalStickSales.toFixed(2)}</Text>
         <Text style={styles.totalCell}>{totalPlateQty}</Text>
         <Text style={styles.totalCell}>₹ {totalPlateSales.toFixed(2)}</Text>
+        <Text style={styles.totalCell}>₹ {totalStickQty + totalPlateQty}</Text>
+        <Text style={styles.totalCell}>₹ {(totalStickSales + totalPlateSales).toFixed(2)}</Text>
       </View>
     );
   };
@@ -192,7 +201,7 @@ const ReportsScreen = () => {
 
   const renderTableHeader = () => (
     <View style={styles.tableHeader}>
-      <Text style={[styles.headerCell, { flex: 2 }]}>Date</Text>
+      <Text style={[styles.headerCell, { flex: 1 }]}>Date</Text>
       <Text style={styles.headerCell}>Opening</Text>
       <Text style={styles.headerCell}>Sale</Text>
       <Text style={styles.headerCell}>Closing</Text>
@@ -206,7 +215,7 @@ const ReportsScreen = () => {
     if (item.isHoliday) {
       return (
         <View style={styles.holidayRow} key={item.date}>
-          <Text style={[styles.cell, { flex: 2 }]}>{item.date}</Text>
+          <Text style={[styles.cell, { flex: 1 }]}>{dayjs(item.date).format('DD MMM')}</Text>
           <Text style={[styles.cell, { flex: 4 }]}>🌴 Holiday</Text>
         </View>
       );
@@ -227,7 +236,7 @@ const ReportsScreen = () => {
             ]}
             key={item.date}
             >
-            <Text style={[styles.cell, { flex: 2 }]}>{item.date}</Text>
+            <Text style={[styles.cell, { flex: 1 }]}>{dayjs(item.date).format('DD MMM')}</Text>
             <Text style={styles.cell}>{openingQty}</Text>
             <Text style={styles.cell}>{soldQty}</Text>
             <Text style={styles.cell}>{closingQty}</Text>
@@ -275,7 +284,7 @@ const ReportsScreen = () => {
     if (item.isHoliday) {
       return (
         <View style={styles.holidayRow} key={item.date}>
-          <Text style={[styles.cell, { flex: 2 }]}>{item.date}</Text>
+          <Text style={[styles.cell, { flex: 1 }]}>{dayjs(item.date).format('DD MMM')}</Text>
           <Text style={[styles.cell, { flex: 4 }]}>🌴 Holiday</Text>
         </View>
       );
@@ -290,7 +299,7 @@ const ReportsScreen = () => {
         styles.tableRow,
         isCurrentOpenDay && styles.currentDayRow]
         } key={item.date}>
-        <Text style={[styles.cell, { flex: 2 }]}>{item.date}</Text>
+        <Text style={[styles.cell, { flex: 1}]}>{dayjs(item.date).format('DD MMM')}</Text>
         <Text style={styles.cell}>{samples}</Text>
         <Text style={styles.cell}>{wastage}</Text>
         <Text style={styles.cell}>{shortage}</Text>
@@ -306,7 +315,7 @@ const ReportsScreen = () => {
     if (item.isHoliday) {
       return (
         <View style={styles.holidayRow} key={item.date}>
-          <Text style={[styles.cell, { flex: 2 }]}>{item.date}</Text>
+          <Text style={[styles.cell, { flex: 1 }]}>{dayjs(item.date).format('DD MMM')}</Text>
           <Text style={[styles.cell, { flex: 4 }]}>🌴 Holiday</Text>
         </View>
       );
@@ -321,7 +330,7 @@ const ReportsScreen = () => {
         styles.tableRow,
         isCurrentOpenDay && styles.currentDayRow]
         } key={item.date}>
-        <Text style={[styles.cell, { flex: 2 }]}>{item.date}</Text>
+        <Text style={[styles.cell, { flex: 1 }]}>{dayjs(item.date).format('DD MMM')}</Text>
         <Text style={styles.cell}>{credit}</Text>
         <Text style={styles.cell}>{swiggy}</Text>
         <Text style={styles.cell}>{zomato}</Text>
@@ -442,7 +451,11 @@ const ReportsScreen = () => {
 
   return (    
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-      <ScrollView style={styles.container}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }}
+        style={styles.container}
+        showsVerticalScrollIndicator={true}
+      >
 
         <Text style={[styles.dateText, { color: '#eb7100' }]}>
                   📅 {new Date().toLocaleDateString('en-GB', {
@@ -705,13 +718,38 @@ const styles = StyleSheet.create({
     color: '#311847',
     textAlign: 'center',
   },
+  // tableHeader: {
+  //   flexDirection: 'row',
+  //   backgroundColor: '#d90368',
+  //   padding: 10,
+  //   borderTopLeftRadius: 12,
+  //   borderTopRightRadius: 12,
+  // },
+  // headerCell: {
+  //   flex: 1,
+  //   fontWeight: 'bold',
+  //   color: '#fff',
+  //   textAlign: 'center',
+  //   fontSize: 13,
+  // },
+  // tableRow: {
+  //   flexDirection: 'row',
+  //   backgroundColor: '#f9f9f9',
+  //   padding: 10,
+  //   borderBottomWidth: 1,
+  //   borderColor: '#311847',
+  //   borderBottomColor: '#ccc',
+  // },
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: '#d90368',
-    padding: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
+    alignItems: 'center', // ✅
   },
+
   headerCell: {
     flex: 1,
     fontWeight: 'bold',
@@ -719,14 +757,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 13,
   },
+
   tableRow: {
     flexDirection: 'row',
     backgroundColor: '#f9f9f9',
     paddingVertical: 8,
+    paddingHorizontal: 10,
     borderBottomWidth: 1,
-    borderColor: '#311847',
     borderBottomColor: '#ccc',
+    alignItems: 'center', // ✅
   },
+
   currentDayRow: {
     backgroundColor: '#9e46',
     fontWeight: 'bold',
@@ -736,7 +777,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffe6f0',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderColor: '#311847',
+    // borderColor: '#311847',
     alignItems: 'center',
     borderBottomColor: '#ccc',
   },

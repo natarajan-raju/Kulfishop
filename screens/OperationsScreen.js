@@ -24,9 +24,12 @@ import { CartContext } from '../context/Cart';
 import { readDocuments, updateDocument, db } from '../database/firebase';
 import { Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import {LottieView} from 'lottie-react-native';
+// import {LottieView} from 'lottie-react-native';
+import ConfettiCannon from 'react-native-confetti-cannon';
+
 import Toast from 'react-native-root-toast';
 import { Feather } from '@expo/vector-icons';
+// import Confetti from '../components/Confetti';
 
 
 const OperationsScreen = () => {
@@ -67,9 +70,10 @@ const OperationsScreen = () => {
   const [originalBalanceShort, setOriginalBalanceShort] = useState(0);
   const [finalDashboardData, setFinalDashboardData] = useState(null);
   const [dayClosed, setDayClosed] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(false);
+  // const [showConfetti, setShowConfetti] = useState(false);
   const [loading, setLoading] = useState(true);
   const [effectiveDate, setEffectiveDate] = useState(new Date());
+  const [showConfetti, setShowConfetti] = useState(false);
 
   
   const getEffectiveDate = async () => {
@@ -458,9 +462,9 @@ const OperationsScreen = () => {
       setFinalDashboardData({
         selectedCart: cart,
         stickSoldQty: stickSoldQty(),
-        stickSalesValue: stickSalesValue(),
+        stickSalesValue: parseFloat(stickSalesValue()),
         plateSoldQty: plateSoldQty(),
-        plateSalesValue: plateSalesValue(),
+        plateSalesValue: parseFloat(plateSalesValue()),
         cashCollected: receiptsData.cash,
         qrCollected: receiptsData.qr,
         receivables: {
@@ -499,7 +503,8 @@ const OperationsScreen = () => {
         costPrice: inventory.stick.costPrice,
         sellingPrice: inventory.stick.sellingPrice,
       };
-  
+      
+
       const updatedWarehousePlate = {
         quantity: inventory.plate.quantity + keptPlateQty,
         costPrice: inventory.plate.costPrice,
@@ -533,45 +538,6 @@ const OperationsScreen = () => {
         if (monthSnap.exists()) {
           const monthData = monthSnap.data();
           const todaySummary = monthData.dailySummaries?.[todayDate];
-          // let currentMonthlySummary = {
-          //   stickSold: 0,
-          //   plateSold: 0,
-          //   receipts: { cash: 0, qr: 0 },
-          //   receivables: { credit: 0, swiggy: 0, zomato: 0 },
-          //   expenses: {
-          //     samples: 0,
-          //     wastage: 0,
-          //     other: 0,
-          //     municipality: 0,
-          //     bata: 0,
-          //     shortage: 0,
-          //   }
-          // };
-
-          // if (monthData.monthlySummary) {
-          //   currentMonthlySummary = monthData.monthlySummary;
-          // } else {
-          //   // 🧮 Calculate from dailySummaries if monthlySummary is missing
-          //   const summaries = monthData.dailySummaries || {};
-          //   for (const summary of Object.values(summaries)) {
-          //     currentMonthlySummary.stickSold += summary.stickSold || 0;
-          //     currentMonthlySummary.plateSold += summary.plateSold || 0;
-          
-          //     currentMonthlySummary.receipts.cash += summary.receipts?.cash || 0;
-          //     currentMonthlySummary.receipts.qr += summary.receipts?.qr || 0;
-          
-          //     currentMonthlySummary.receivables.credit += summary.receivables?.credit || 0;
-          //     currentMonthlySummary.receivables.swiggy += summary.receivables?.swiggy || 0;
-          //     currentMonthlySummary.receivables.zomato += summary.receivables?.zomato || 0;
-          
-          //     currentMonthlySummary.expenses.samples += summary.expenses?.samples || 0;
-          //     currentMonthlySummary.expenses.wastage += summary.expenses?.wastage || 0;
-          //     currentMonthlySummary.expenses.other += summary.expenses?.other || 0;
-          //     currentMonthlySummary.expenses.municipality += summary.expenses?.municipality || 0;
-          //     currentMonthlySummary.expenses.bata += summary.expenses?.bata || 0;
-          //     currentMonthlySummary.expenses.shortage += summary.expenses?.shortage || 0;
-          //   }
-          // }
 
           if (todaySummary) {
             const updatedStickSold = (todaySummary.stickSold || 0) + stickSoldQty();
@@ -580,13 +546,10 @@ const OperationsScreen = () => {
             await updateDoc(monthDocRef, {
               [`dailySummaries.${todayDate}.stickSold`]: updatedStickSold,
               [`dailySummaries.${todayDate}.plateSold`]: updatedPlateSold,
+              [`dailySummaries.${todayDate}.stickSalesValue`]: (todaySummary.stickSalesValue || 0) + parseFloat(stickSalesValue()),
+              [`dailySummaries.${todayDate}.plateSalesValue`]: (todaySummary.plateSalesValue || 0) + parseFloat(plateSalesValue()),
             });
 
-            // // 🧮 Update monthly summary stick/plate sold
-            // await updateDoc(monthDocRef, {
-            //   [`monthlySummary.stickSold`]: (monthData.monthlySummary?.stickSold || 0) + updatedStickSold,
-            //   [`monthlySummary.plateSold`]: (monthData.monthlySummary?.plateSold || 0) + updatedPlateSold,
-            // });
 
             let { cash, qr } = receiptsData || {};
             cash = parseOrZero(cash);
@@ -633,30 +596,142 @@ const OperationsScreen = () => {
               [`dailySummaries.${todayDate}.expenses.bata`]: (parseFloat(todaySummary?.expenses?.bata) || 0) + parseFloat(bata),
               [`dailySummaries.${todayDate}.expenses.shortage`]: (parseFloat(todaySummary?.expenses?.shortage) || 0) + parseFloat(shortage),
             };
+
+            // 🔥 Update or create Monthly Summary
+            const existingMonthly = monthData.monthlySummary || {
+              stickSold: 0,
+              plateSold: 0,
+              stickSalesValue: 0,
+              plateSalesValue: 0,
+              receipts: { cash: 0, qr: 0 },
+              receivables: { credit: 0, swiggy: 0, zomato: 0 },
+              expenses: {
+                samples: 0, wastage: 0, other: 0,
+                municipality: 0, bata: 0, shortage: 0,
+              }
+            };
+
+            const updatedMonthly = {
+              stickSold: existingMonthly.stickSold + stickSoldQty(),
+              plateSold: existingMonthly.plateSold + plateSoldQty(),
+              stickSalesValue: parseFloat(existingMonthly.stickSalesValue) + parseFloat(stickSalesValue()),
+              plateSalesValue: parseFloat(existingMonthly.plateSalesValue) + parseFloat(plateSalesValue()),
+              receipts: {
+                cash: (existingMonthly.receipts?.cash || 0) + parseFloat(cash),
+                qr: (existingMonthly.receipts?.qr || 0) + parseFloat(qr),
+              },
+              receivables: {
+                credit: (existingMonthly.receivables?.credit || 0) + parseFloat(credit),
+                swiggy: (existingMonthly.receivables?.swiggy || 0) + parseFloat(swiggy),
+                zomato: (existingMonthly.receivables?.zomato || 0) + parseFloat(zomato),
+              },
+              expenses: {
+                samples: (existingMonthly.expenses?.samples || 0) + parseFloat(samples),
+                wastage: (existingMonthly.expenses?.wastage || 0) + parseFloat(wastage),
+                other: (existingMonthly.expenses?.other || 0) + parseFloat(other),
+                municipality: (existingMonthly.expenses?.municipality || 0) + parseFloat(municipality),
+                bata: (existingMonthly.expenses?.bata || 0) + parseFloat(bata),
+                shortage: (existingMonthly.expenses?.shortage || 0) + parseFloat(shortage),
+              }
+            };
+            
+            const totalSales =
+            updatedMonthly.receipts.cash +
+            updatedMonthly.receipts.qr +
+            updatedMonthly.receivables.credit +
+            updatedMonthly.receivables.swiggy +
+            updatedMonthly.receivables.zomato;
+
+            updatedMonthly.totalSales = totalSales;
+
+
+            await updateDoc(monthDocRef, {
+              monthlySummary: updatedMonthly
+            });
+
           
             await updateDoc(monthDocRef, {
+              monthlySummary: updatedMonthly,
               ...updatedReceipts,
               ...updatedReceivables,
               ...updatedExpenses,
-            
-              // [`monthlySummary.receipts.cash`]: currentMonthlySummary.receipts.cash + parseFloat(cash),
-              // [`monthlySummary.receipts.qr`]: currentMonthlySummary.receipts.qr + parseFloat(qr),
-            
-              // [`monthlySummary.receivables.credit`]: currentMonthlySummary.receivables.credit + parseFloat(credit),
-              // [`monthlySummary.receivables.swiggy`]: currentMonthlySummary.receivables.swiggy + parseFloat(swiggy),
-              // [`monthlySummary.receivables.zomato`]: currentMonthlySummary.receivables.zomato + parseFloat(zomato),
-            
-              // [`monthlySummary.expenses.samples`]: currentMonthlySummary.expenses.samples + parseFloat(samples),
-              // [`monthlySummary.expenses.wastage`]: currentMonthlySummary.expenses.wastage + parseFloat(wastage),
-              // [`monthlySummary.expenses.other`]: currentMonthlySummary.expenses.other + parseFloat(other),
-              // [`monthlySummary.expenses.municipality`]: currentMonthlySummary.expenses.municipality + parseFloat(municipality),
-              // [`monthlySummary.expenses.bata`]: currentMonthlySummary.expenses.bata + parseFloat(bata),
-              // [`monthlySummary.expenses.shortage`]: currentMonthlySummary.expenses.shortage + parseFloat(shortage),
             });
+
+            // 🔥 Update or create Yearly Summary
+            const yearDocRef = doc(db, 'dailyStockSummary', year);
+            const yearSnap = await getDoc(yearDocRef);
+
+            const existingYearly = yearSnap.exists() && yearSnap.data()?.yearlySummary
+              ? yearSnap.data().yearlySummary
+              : {
+                  stickSold: 0,
+                  plateSold: 0,
+                  stickSalesValue: 0,
+                  plateSalesValue: 0,
+                  receipts: { cash: 0, qr: 0 },
+                  receivables: { credit: 0, swiggy: 0, zomato: 0 },
+                  expenses: {
+                    samples: 0, wastage: 0, other: 0,
+                    municipality: 0, bata: 0, shortage: 0,
+                  },
+                  totalSales: 0
+                };
+
+            const updatedYearly = {
+              stickSold: existingYearly.stickSold + stickSoldQty(),
+              plateSold: existingYearly.plateSold + plateSoldQty(),
+              stickSalesValue: existingYearly.stickSalesValue + parseFloat(stickSalesValue()),
+              plateSalesValue: existingYearly.plateSalesValue + parseFloat(plateSalesValue()),
+              receipts: {
+                cash: (existingYearly.receipts?.cash || 0) + parseFloat(cash),
+                qr: (existingYearly.receipts?.qr || 0) + parseFloat(qr),
+              },
+              receivables: {
+                credit: (existingYearly.receivables?.credit || 0) + parseFloat(credit),
+                swiggy: (existingYearly.receivables?.swiggy || 0) + parseFloat(swiggy),
+                zomato: (existingYearly.receivables?.zomato || 0) + parseFloat(zomato),
+              },
+              expenses: {
+                samples: (existingYearly.expenses?.samples || 0) + parseFloat(samples),
+                wastage: (existingYearly.expenses?.wastage || 0) + parseFloat(wastage),
+                other: (existingYearly.expenses?.other || 0) + parseFloat(other),
+                municipality: (existingYearly.expenses?.municipality || 0) + parseFloat(municipality),
+                bata: (existingYearly.expenses?.bata || 0) + parseFloat(bata),
+                shortage: (existingYearly.expenses?.shortage || 0) + parseFloat(shortage),
+              },
+            };
+
+            updatedYearly.totalSales =
+              updatedYearly.receipts.cash +
+              updatedYearly.receipts.qr +
+              updatedYearly.receivables.credit +
+              updatedYearly.receivables.swiggy +
+              updatedYearly.receivables.zomato;
+
+            if (!yearSnap.exists()) {
+              await setDoc(yearDocRef, {}, { merge: true });
+            } else {
+              await updateDoc(yearDocRef, {
+                yearlySummary: updatedYearly
+              });
+            }
+  
+
+
             
           
           } else {
-            console.error('❌ No todaySummary found to update');
+            if (!todayData) {
+  console.log('📦 No todaySummary found, initializing new one...');
+  todayData = {
+    date: dateKey,
+    sales: {
+      stick: { quantity: 0, value: 0 },
+      plate: { quantity: 0, value: 0 }
+    },
+  };
+}
+
           }
         } else {
           console.error('❌ No month document found to update');
@@ -764,6 +839,28 @@ const OperationsScreen = () => {
           remarks: '',
         }
       });
+
+      const yearDocRef = doc(db, 'dailyStockSummary', year);
+      const yearSnap = await getDoc(yearDocRef);
+
+      if (!yearSnap.exists() || !yearSnap.data()?.yearlySummary) {
+        await setDoc(yearDocRef, {
+          yearlySummary: {
+            stickSold: 0,
+            plateSold: 0,
+            stickSalesValue: 0,
+            plateSalesValue: 0,
+            receipts: { cash: 0, qr: 0 },
+            receivables: { credit: 0, swiggy: 0, zomato: 0 },
+            expenses: {
+              samples: 0, wastage: 0, other: 0,
+              municipality: 0, bata: 0, shortage: 0,
+            },
+            totalSales: 0
+          }
+        }, { merge: true });
+      }
+
   
       setDayStarted(true);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -842,7 +939,27 @@ const OperationsScreen = () => {
     );
   }
   
-  
+//   const SafeConfetti = () => {
+//   try {
+//     return (
+//       <LottieView
+//         source={require('../assets/confetti.json')}
+//         autoPlay
+//         loop={false}
+//         style={{
+//           position: 'absolute',
+//           width: '100%',
+//           height: '100%',
+//           zIndex: 100,
+//         }}
+//       />
+//     );
+//   } catch (error) {
+//     console.warn('Confetti animation failed to load', error);
+//     return null;
+//   }
+// };
+
   
   
 
@@ -851,20 +968,8 @@ const OperationsScreen = () => {
     <ScrollView style={[styles.container, { backgroundColor }]}
     contentContainerStyle={{ flexGrow: 1, paddingBottom: 100}}>
 
-       {!__DEV__ &&showConfetti && (
-          <LottieView
-            source={require('../assets/confetti.json')} // 🎉 your lottie confetti file
-            autoPlay
-            loop={false}
-            style={{
-              position: 'absolute',
-              width: '100%',
-              height: '100%',
-              zIndex: 100,
-            }}
-          />
-        )}
-
+      
+      
       {/* Toggle */}
       <View style={styles.toggleWrapper}>
         <TouchableOpacity
@@ -981,21 +1086,23 @@ const OperationsScreen = () => {
                 
                
                     <View style={styles.form}>
-                      <Text style={[styles.label, { color: labelTextColor('Select Cart') }]}>Select Cart</Text>
+                      <Text style={[styles.label, { backgroundColor: inputBgColor, color: labelTextColor('Select Cart') }]}>Select Cart</Text>
                       <View style={styles.pickerWrapper}>
                         <Picker
                           selectedValue={selectedCartId}
                           onValueChange={setSelectedCartId}
                           mode="dropdown"
-                          dropdownIconColor={textColor}
+                          dropdownIconColor={'#000'}
+                          style={{color: '#000'}}
                         >
                           <Picker.Item key="default" label="Select a cart" value="" />
                           {carts
                             .map(cart => (
                               <Picker.Item
                                 key={cart.id}
-                                label={`${cart.address} (ID: ${cart.id})`}
+                                label={`${cart.address}`}
                                 value={cart.id}
+                                
                               />
                           ))}
                         </Picker>
@@ -1013,7 +1120,7 @@ const OperationsScreen = () => {
 
                       <Text style={[styles.label, { color: labelTextColor('Plate Kulfi Qty') }]}>Plate Kulfi Qty</Text>
                       <TextInput
-                        style={[styles.input, { backgroundColor: inputBgColor, color: textColor }]}
+                        style={[styles.input, {  color: textColor }]}
                         keyboardType="number-pad"
                         value={plateQty}
                         onChangeText={setPlateQty}
@@ -1079,14 +1186,14 @@ const OperationsScreen = () => {
               }}
               
               mode="dropdown"
-              dropdownIconColor={mode === 'dayOut' ? '#fff' : '#000'}
-              style={{ color: mode === 'dayOut' ? '#fff' : '#000' }}
+              dropdownIconColor={'#000'}
+              style={{ color: '#000'}}
             >
               <Picker.Item label="Select a cart" value="" />
               {carts.filter(c => c.status === 'open').map(cart => (
                 <Picker.Item
                   key={cart.id}
-                  label={`${cart.address} (ID: ${cart.id})`}
+                  label={`${cart.address}`}
                   value={cart.id}
                 />
               ))}
@@ -1603,7 +1710,7 @@ const OperationsScreen = () => {
                         </Text>
                       </View>
                       <Text style={styles.dashboardAmount}>
-                        ₹{cartClosed ? finalDashboardData?.stickSalesValue : stickSalesValue()}
+                        ₹{cartClosed ? finalDashboardData?.stickSalesValue : parseFloat(stickSalesValue())}
                       </Text>
                     </View>
                   ) : null}
@@ -1618,7 +1725,7 @@ const OperationsScreen = () => {
                         </Text>
                       </View>
                       <Text style={styles.dashboardAmount}>
-                        ₹{cartClosed ? finalDashboardData?.plateSalesValue : plateSalesValue()}
+                        ₹{cartClosed ? finalDashboardData?.plateSalesValue : parseFloat(plateSalesValue())}
                       </Text>
                     </View>
                   ) : null}
@@ -1740,7 +1847,18 @@ const OperationsScreen = () => {
           )}
         </View>
       )}
-  
+
+      {showConfetti && (
+        <ConfettiCannon
+          count={150}
+          origin={{ x: 0, y: 0 }}
+          fallSpeed={3000}
+          explosionSpeed={350}
+          fadeOut={true}
+          onAnimationEnd={() => setShowConfetti(false)}
+        />
+      )}
+
      
 
     </ScrollView>
@@ -1794,6 +1912,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   pickerWrapper: {
+    backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
